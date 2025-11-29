@@ -1,0 +1,24 @@
+{
+  "name": "prathinityam-news-portal",
+  "version": "1.0.0",
+  "description": "Full-stack MERN News Portal with role-based authentication",
+  "main": "index.js",
+  "scripts": {
+    "install-all": "cd backend && npm install && cd ../frontend && npm install",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "seed-admin": "cd backend && npm run seed-admin",
+    "dev": "echo 'Please run backend and frontend in separate terminals' && echo 'Backend: npm run backend' && echo 'Frontend: npm run frontend'"
+  },
+  "keywords": [
+    "news",
+    "portal",
+    "mern",
+    "react",
+    "nodejs",
+    "mongodb",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT"
+}
