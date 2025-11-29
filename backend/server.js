@@ -5,33 +5,52 @@ const path = require('path');
 const connectDB = require('./config/database');
 const bcrypt = require('bcryptjs');
 const Admin = require('./models/Admin');
+const mongoose = require('mongoose');
 
 const app = express();
 
-// Connect to MongoDB
-connectDB();
-
-// Auto-seed admin on first startup (production only)
-if (process.env.NODE_ENV === 'production') {
-  const seedAdminOnStartup = async () => {
-    try {
-      const existingAdmin = await Admin.findOne({ email: process.env.ADMIN_EMAIL });
-      if (!existingAdmin) {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, salt);
-        await Admin.create({
-          email: process.env.ADMIN_EMAIL,
-          password: hashedPassword
-        });
-        console.log('✅ Admin account auto-created on startup!');
+// Connect to MongoDB and seed admin
+const initializeApp = async () => {
+  try {
+    await connectDB();
+    
+    // Auto-seed admin on first startup (production only)
+    if (process.env.NODE_ENV === 'production') {
+      console.log('🔍 Checking for admin account...');
+      
+      // Wait for MongoDB connection to be ready
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const existingAdmin = await Admin.findOne({ email: process.env.ADMIN_EMAIL });
+          
+          if (!existingAdmin) {
+            console.log('📝 Creating admin account...');
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, salt);
+            
+            const newAdmin = await Admin.create({
+              email: process.env.ADMIN_EMAIL,
+              password: hashedPassword,
+              role: 'admin'
+            });
+            
+            console.log('✅ Admin account created successfully!');
+            console.log(`📧 Email: ${process.env.ADMIN_EMAIL}`);
+          } else {
+            console.log('ℹ️  Admin account already exists');
+          }
+        } catch (seedError) {
+          console.error('❌ Error seeding admin:', seedError.message);
+        }
       }
-    } catch (error) {
-      console.log('ℹ️  Admin auto-seed skipped:', error.message);
     }
-  };
-  // Run after a short delay to ensure DB connection
-  setTimeout(seedAdminOnStartup, 2000);
-}
+  } catch (error) {
+    console.error('❌ App initialization error:', error);
+  }
+};
+
+// Initialize the app
+initializeApp();
 
 // Middleware
 app.use(cors());
@@ -51,6 +70,38 @@ app.use('/api/admin', require('./routes/admin'));
 // Health check route
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
+});
+
+// Manual admin seed endpoint (production only, for emergency use)
+app.post('/api/seed-admin-emergency', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV !== 'production') {
+      return res.status(403).json({ message: 'Only available in production' });
+    }
+
+    const existingAdmin = await Admin.findOne({ email: process.env.ADMIN_EMAIL });
+    
+    if (existingAdmin) {
+      return res.json({ message: 'Admin already exists', email: existingAdmin.email });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, salt);
+    
+    const newAdmin = await Admin.create({
+      email: process.env.ADMIN_EMAIL,
+      password: hashedPassword,
+      role: 'admin'
+    });
+
+    res.json({ 
+      message: 'Admin created successfully!',
+      email: newAdmin.email 
+    });
+  } catch (error) {
+    console.error('Seed error:', error);
+    res.status(500).json({ message: 'Error creating admin', error: error.message });
+  }
 });
 
 // Serve frontend in production
