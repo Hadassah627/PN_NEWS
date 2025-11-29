@@ -3,11 +3,35 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/database');
+const bcrypt = require('bcryptjs');
+const Admin = require('./models/Admin');
 
 const app = express();
 
 // Connect to MongoDB
 connectDB();
+
+// Auto-seed admin on first startup (production only)
+if (process.env.NODE_ENV === 'production') {
+  const seedAdminOnStartup = async () => {
+    try {
+      const existingAdmin = await Admin.findOne({ email: process.env.ADMIN_EMAIL });
+      if (!existingAdmin) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(process.env.ADMIN_PASSWORD, salt);
+        await Admin.create({
+          email: process.env.ADMIN_EMAIL,
+          password: hashedPassword
+        });
+        console.log('✅ Admin account auto-created on startup!');
+      }
+    } catch (error) {
+      console.log('ℹ️  Admin auto-seed skipped:', error.message);
+    }
+  };
+  // Run after a short delay to ensure DB connection
+  setTimeout(seedAdminOnStartup, 2000);
+}
 
 // Middleware
 app.use(cors());
