@@ -1,7 +1,8 @@
 import axios from 'axios';
 
+// Use environment variable for API URL in production, fallback to /api for local dev
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
 });
 
 // Add token to requests
